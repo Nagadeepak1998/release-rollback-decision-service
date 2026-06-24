@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: release-rollback-decision-service
+  labels:
+    app: release-rollback-decision-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: release-rollback-decision-service
+  template:
+    metadata:
+      labels:
+        app: release-rollback-decision-service
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: /metrics
+        prometheus.io/port: "8080"
+    spec:
+      containers:
+        - name: api
+          image: ghcr.io/nagadeepak1998/release-rollback-decision-service:0.1.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: release-rollback-decision-service
+spec:
+  selector:
+    app: release-rollback-decision-service
+  ports:
+    - port: 80
+      targetPort: 8080

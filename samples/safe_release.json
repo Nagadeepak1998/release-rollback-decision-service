@@ -1,0 +1,17 @@
+{
+  "service": "checkout-api",
+  "environment": "production",
+  "version": "2026.06.24-rc4",
+  "deployment_age_minutes": 42,
+  "error_rate_percent": 0.7,
+  "baseline_error_rate_percent": 0.6,
+  "p95_latency_ms": 430,
+  "baseline_p95_latency_ms": 410,
+  "saturation_percent": 63,
+  "failed_synthetic_checks": 0,
+  "canary_traffic_percent": 25,
+  "customer_impact_count": 0,
+  "open_sev1_incident": false,
+  "change_freeze_active": false,
+  "runbook_url": "https://runbooks.example.invalid/checkout-api/rollback"
+}

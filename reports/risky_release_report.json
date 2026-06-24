@@ -1,0 +1,54 @@
+{
+  "service": "checkout-api",
+  "environment": "production",
+  "version": "2026.06.24-rc3",
+  "decision": "rollback",
+  "severity": "critical",
+  "score": 176,
+  "triggered_rules": [
+    {
+      "rule": "sev1-open",
+      "points": 45,
+      "message": "A Sev1 incident is open during the rollout."
+    },
+    {
+      "rule": "customer-impact",
+      "points": 35,
+      "message": "32 impacted customers were reported."
+    },
+    {
+      "rule": "error-budget-burn",
+      "points": 30,
+      "message": "Error rate is 6.40% versus 0.80% baseline."
+    },
+    {
+      "rule": "latency-regression",
+      "points": 20,
+      "message": "P95 latency is 2.2x baseline."
+    },
+    {
+      "rule": "resource-saturation",
+      "points": 18,
+      "message": "Resource saturation is 91.0%."
+    },
+    {
+      "rule": "synthetic-check-failures",
+      "points": 18,
+      "message": "4 synthetic checks failed."
+    },
+    {
+      "rule": "rapid-traffic-shift",
+      "points": 10,
+      "message": "Traffic reached at least 50% in the first 10 minutes."
+    }
+  ],
+  "recommended_actions": [
+    "Attach this report to the deployment record.",
+    "Keep the incident channel updated with the current decision and owner.",
+    "Stop traffic increase and execute the rollback runbook.",
+    "Capture the failing version, metrics window, and customer impact before cleanup.",
+    "Run post-rollback health checks before closing the incident.",
+    "Use runbook: https://runbooks.example.invalid/checkout-api/rollback"
+  ],
+  "summary": "checkout-api 2026.06.24-rc3 in production: rollback recommended with score 176."
+}
