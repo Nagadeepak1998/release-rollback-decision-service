@@ -42,3 +42,42 @@ class DecisionReport(BaseModel):
     triggered_rules: list[TriggeredRule]
     recommended_actions: list[str]
     summary: str
+
+
+class EvidenceWindow(BaseModel):
+    observed_at: str = Field(min_length=1)
+    evidence: ReleaseEvidence
+
+
+class PostDeployReviewRequest(BaseModel):
+    release_id: str = Field(min_length=1)
+    owner: str = Field(min_length=1)
+    windows: list[EvidenceWindow] = Field(min_length=1)
+    rollback_runbook_url: str | None = None
+
+
+class ReviewedWindow(BaseModel):
+    observed_at: str
+    decision: Decision
+    severity: Severity
+    score: int
+    triggered_rules: list[str]
+    summary: str
+
+
+class PostDeployReviewReport(BaseModel):
+    release_id: str
+    service: str
+    environment: str
+    version: str
+    owner: str
+    decision: Decision
+    severity: Severity
+    max_score: int
+    latest_score: int
+    window_count: int
+    rollback_windows: int
+    pause_windows: int
+    reviewed_windows: list[ReviewedWindow]
+    recommended_actions: list[str]
+    summary: str

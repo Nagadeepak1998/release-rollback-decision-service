@@ -1,6 +1,14 @@
 from __future__ import annotations
 
-from .models import DecisionReport, ReleaseEvidence, TriggeredRule
+from .models import (
+    DecisionReport,
+    PostDeployReviewReport,
+    PostDeployReviewRequest,
+    ReleaseEvidence,
+    ReviewedWindow,
+    Severity,
+    TriggeredRule,
+)
 
 
 def _rule(rule: str, points: int, message: str) -> TriggeredRule:
@@ -151,4 +159,136 @@ def _actions_for(decision: str, evidence: ReleaseEvidence) -> list[str]:
         )
     if evidence.runbook_url:
         actions.append(f"Use runbook: {evidence.runbook_url}")
+    return actions
+
+
+def review_post_deploy_evidence(request: PostDeployReviewRequest) -> PostDeployReviewReport:
+    window_reports = [
+        (window.observed_at, evaluate_release(window.evidence)) for window in request.windows
+    ]
+    decisions = [report.decision for _, report in window_reports]
+    severities = [report.severity for _, report in window_reports]
+    max_score = max(report.score for _, report in window_reports)
+    latest_report = window_reports[-1][1]
+
+    if "rollback" in decisions:
+        decision = "rollback"
+    elif "pause" in decisions:
+        decision = "pause"
+    else:
+        decision = "continue"
+
+    severity = _max_severity(severities)
+    first_evidence = request.windows[0].evidence
+    reviewed_windows = [
+        ReviewedWindow(
+            observed_at=observed_at,
+            decision=report.decision,
+            severity=report.severity,
+            score=report.score,
+            triggered_rules=[rule.rule for rule in report.triggered_rules],
+            summary=report.summary,
+        )
+        for observed_at, report in window_reports
+    ]
+    rollback_windows = decisions.count("rollback")
+    pause_windows = decisions.count("pause")
+    summary = (
+        f"{request.release_id}: {decision} after {len(window_reports)} post-deploy "
+        f"window(s); max score {max_score}, latest score {latest_report.score}."
+    )
+
+    return PostDeployReviewReport(
+        release_id=request.release_id,
+        service=first_evidence.service,
+        environment=first_evidence.environment,
+        version=first_evidence.version,
+        owner=request.owner,
+        decision=decision,
+        severity=severity,
+        max_score=max_score,
+        latest_score=latest_report.score,
+        window_count=len(window_reports),
+        rollback_windows=rollback_windows,
+        pause_windows=pause_windows,
+        reviewed_windows=reviewed_windows,
+        recommended_actions=_review_actions(decision, request, latest_report),
+        summary=summary,
+    )
+
+
+def render_markdown_review(report: PostDeployReviewReport) -> str:
+    lines = [
+        f"# Rollback Decision Review: {report.release_id}",
+        "",
+        f"- Service: `{report.service}`",
+        f"- Environment: `{report.environment}`",
+        f"- Version: `{report.version}`",
+        f"- Owner: `{report.owner}`",
+        f"- Decision: `{report.decision}`",
+        f"- Severity: `{report.severity}`",
+        f"- Windows reviewed: `{report.window_count}`",
+        f"- Max score: `{report.max_score}`",
+        f"- Latest score: `{report.latest_score}`",
+        "",
+        "## Summary",
+        "",
+        report.summary,
+        "",
+        "## Reviewed Windows",
+        "",
+        "| Observed At | Decision | Severity | Score | Rules |",
+        "| --- | --- | --- | ---: | --- |",
+    ]
+    for window in report.reviewed_windows:
+        rules = ", ".join(window.triggered_rules) if window.triggered_rules else "none"
+        lines.append(
+            f"| {window.observed_at} | {window.decision} | {window.severity} | "
+            f"{window.score} | {rules} |"
+        )
+
+    lines.extend(["", "## Recommended Actions", ""])
+    lines.extend(f"- {action}" for action in report.recommended_actions)
+    return "\n".join(lines) + "\n"
+
+
+def _max_severity(severities: list[Severity]) -> Severity:
+    order: dict[Severity, int] = {"low": 0, "medium": 1, "high": 2, "critical": 3}
+    return max(severities, key=lambda severity: order[severity])
+
+
+def _review_actions(
+    decision: str,
+    request: PostDeployReviewRequest,
+    latest_report: DecisionReport,
+) -> list[str]:
+    actions = [
+        "Attach this review to the release record with the observation window list.",
+        "Post the final decision and owner in the incident or deployment channel.",
+    ]
+    if decision == "rollback":
+        actions.extend(
+            [
+                "Stop further promotion and start the rollback runbook.",
+                "Compare the latest window against the highest-risk window before closing impact.",
+                "Keep customer-impact and synthetic-check evidence with the rollback timeline.",
+            ]
+        )
+    elif decision == "pause":
+        actions.extend(
+            [
+                "Hold traffic at the current level and collect one more observation window.",
+                "Escalate to rollback if the next window adds impact or error-budget burn.",
+            ]
+        )
+    else:
+        actions.extend(
+            [
+                "Continue progressive delivery while retaining the reviewed windows.",
+                "Keep the same signals on watch until the release reaches full traffic.",
+            ]
+        )
+    actions.extend(latest_report.recommended_actions[:2])
+    if request.rollback_runbook_url:
+        actions.append(f"Rollback runbook: {request.rollback_runbook_url}")
     return actions

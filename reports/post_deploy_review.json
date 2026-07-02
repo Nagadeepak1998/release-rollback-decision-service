@@ -1,0 +1,65 @@
+{
+  "release_id": "checkout-api-2026.06.24-rc3",
+  "service": "checkout-api",
+  "environment": "production",
+  "version": "2026.06.24-rc3",
+  "owner": "release-captain",
+  "decision": "rollback",
+  "severity": "critical",
+  "max_score": 166,
+  "latest_score": 166,
+  "window_count": 3,
+  "rollback_windows": 1,
+  "pause_windows": 1,
+  "reviewed_windows": [
+    {
+      "observed_at": "2026-06-24T18:05:00Z",
+      "decision": "continue",
+      "severity": "low",
+      "score": 8,
+      "triggered_rules": [
+        "synthetic-check-warning"
+      ],
+      "summary": "checkout-api 2026.06.24-rc3 in production: continue recommended with score 8."
+    },
+    {
+      "observed_at": "2026-06-24T18:12:00Z",
+      "decision": "pause",
+      "severity": "medium",
+      "score": 62,
+      "triggered_rules": [
+        "limited-customer-impact",
+        "error-rate-regression",
+        "latency-regression",
+        "synthetic-check-warning"
+      ],
+      "summary": "checkout-api 2026.06.24-rc3 in production: pause recommended with score 62."
+    },
+    {
+      "observed_at": "2026-06-24T18:18:00Z",
+      "decision": "rollback",
+      "severity": "critical",
+      "score": 166,
+      "triggered_rules": [
+        "sev1-open",
+        "customer-impact",
+        "error-budget-burn",
+        "latency-regression",
+        "resource-saturation",
+        "synthetic-check-failures"
+      ],
+      "summary": "checkout-api 2026.06.24-rc3 in production: rollback recommended with score 166."
+    }
+  ],
+  "recommended_actions": [
+    "Attach this review to the release record with the observation window list.",
+    "Post the final decision and owner in the incident or deployment channel.",
+    "Stop further promotion and start the rollback runbook.",
+    "Compare the latest window against the highest-risk window before closing impact.",
+    "Keep customer-impact and synthetic-check evidence with the rollback timeline.",
+    "Attach this report to the deployment record.",
+    "Keep the incident channel updated with the current decision and owner.",
+    "Rollback runbook: https://runbooks.example.invalid/checkout-api/rollback"
+  ],
+  "summary": "checkout-api-2026.06.24-rc3: rollback after 3 post-deploy window(s); max score 166, latest score 166."
+}

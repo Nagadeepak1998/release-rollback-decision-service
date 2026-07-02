@@ -1,4 +1,5 @@
-from release_rollback import ReleaseEvidence, evaluate_release
+from release_rollback import PostDeployReviewRequest, ReleaseEvidence, evaluate_release
+from release_rollback.evaluator import render_markdown_review, review_post_deploy_evidence
 
 
 def test_risky_release_recommends_rollback() -> None:
@@ -51,3 +52,19 @@ def test_pause_for_medium_risk_without_customer_impact() -> None:
     assert report.decision == "pause"
     assert report.severity == "medium"
     assert "Hold the rollout" in " ".join(report.recommended_actions)
+
+
+def test_post_deploy_review_rolls_back_when_later_window_worsens() -> None:
+    request = PostDeployReviewRequest.model_validate_json(
+        open("samples/post_deploy_review.json", encoding="utf-8").read()
+    )
+
+    report = review_post_deploy_evidence(request)
+    markdown = render_markdown_review(report)
+
+    assert report.decision == "rollback"
+    assert report.window_count == 3
+    assert report.rollback_windows == 1
+    assert report.max_score >= report.latest_score >= 70
+    assert "checkout-api-2026.06.24-rc3" in markdown
+    assert "| 2026-06-24T18:18:00Z | rollback |" in markdown

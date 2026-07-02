@@ -19,6 +19,8 @@ shared evaluator in src/release_rollback/
         |
         +-- API: POST /evaluate
         |
+        +-- API: POST /review for multi-window post-deploy reviews
+        |
         +-- Metrics: /metrics
 ```
 
@@ -34,12 +36,14 @@ look at during a progressive rollout:
 - open Sev1 incident state
 - change-freeze state
 - traffic shift speed
+- multi-window post-deploy evidence, when a release needs a rollback review
 
 ## What This Demonstrates
 
 - CI/CD release-gate thinking with deterministic pass/fail behavior.
 - Production-support judgment for rollback, pause, and continue decisions.
 - API and CLI parity from one shared implementation.
+- Post-deploy evidence review with JSON and Markdown output.
 - FastAPI validation with Pydantic models.
 - Prometheus metrics for decision counts and risk scores.
 - Kubernetes manifests with probes, resource bounds, and scrape annotations.
@@ -81,6 +85,15 @@ Release-gate mode, where rollback exits with code `2`:
 rollback-decision samples/risky_release.json --fail-on-rollback
 ```
 
+Post-deploy review mode, where any rollback-worthy window exits with code `2`:
+
+```bash
+rollback-decision review samples/post_deploy_review.json \
+  --output reports/post_deploy_review.json \
+  --markdown reports/post_deploy_review.md \
+  --fail-on-rollback
+```
+
 ## Run The API
 
 ```bash
@@ -94,6 +107,9 @@ curl -s http://127.0.0.1:8080/healthz
 curl -s -X POST http://127.0.0.1:8080/evaluate \
   -H 'content-type: application/json' \
   --data @samples/risky_release.json
+curl -s -X POST http://127.0.0.1:8080/review \
+  -H 'content-type: application/json' \
+  --data @samples/post_deploy_review.json
 curl -s http://127.0.0.1:8080/metrics
 ```
 
@@ -110,6 +126,7 @@ ruff check .
 pytest
 rollback-decision samples/safe_release.json
 rollback-decision samples/risky_release.json --output reports/risky_release_report.json
+make review-report
 python scripts/api_smoke.py
 ```
 
@@ -117,7 +134,10 @@ Expected sample behavior:
 
 - `samples/safe_release.json` recommends `continue`.
 - `samples/risky_release.json` recommends `rollback`.
-- `/metrics` exposes `rollback_decision_requests_total` and `rollback_decision_score`.
+- `samples/post_deploy_review.json` reviews three windows and recommends `rollback`.
+- `reports/post_deploy_review.md` is a tracked example report for a release record.
+- `/metrics` exposes `rollback_decision_requests_total`,
+  `rollback_decision_reviews_total`, and `rollback_decision_score`.
 
 ## Docker
 
@@ -156,6 +176,8 @@ gh auth refresh -h github.com -s workflow
 - Thresholds are examples and should be tuned per service SLO and rollback cost.
 - It does not query live metrics backends. Evidence is supplied as JSON so tests and
   release-gate behavior stay repeatable.
+- Post-deploy review timestamps are supplied by the manifest and are not verified
+  against a deployment system.
 - Kubernetes and Terraform files are scaffolding and were not applied to a live account.
 
 ## Case Study
