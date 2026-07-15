@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+import hashlib
+
 from .models import (
+    ApprovalAuditReport,
+    ApprovalAuditRequest,
     DecisionReport,
     PostDeployReviewReport,
     PostDeployReviewRequest,
@@ -193,6 +197,14 @@ def review_post_deploy_evidence(request: PostDeployReviewRequest) -> PostDeployR
     ]
     rollback_windows = decisions.count("rollback")
     pause_windows = decisions.count("pause")
+    execution_status = (
+        "approval_required"
+        if decision == "rollback" and request.rollback_approval is None
+        else "ready"
+    )
+    evidence_fingerprint = hashlib.sha256(
+        request.model_dump_json(exclude={"rollback_approval"}).encode("utf-8")
+    ).hexdigest()
     summary = (
         f"{request.release_id}: {decision} after {len(window_reports)} post-deploy "
         f"window(s); max score {max_score}, latest score {latest_report.score}."
@@ -211,6 +223,9 @@ def review_post_deploy_evidence(request: PostDeployReviewRequest) -> PostDeployR
         window_count=len(window_reports),
         rollback_windows=rollback_windows,
         pause_windows=pause_windows,
+        execution_status=execution_status,
+        evidence_fingerprint=evidence_fingerprint,
+        rollback_approval=request.rollback_approval,
         reviewed_windows=reviewed_windows,
         recommended_actions=_review_actions(decision, request, latest_report),
         summary=summary,
@@ -230,6 +245,8 @@ def render_markdown_review(report: PostDeployReviewReport) -> str:
         f"- Windows reviewed: `{report.window_count}`",
         f"- Max score: `{report.max_score}`",
         f"- Latest score: `{report.latest_score}`",
+        f"- Execution status: `{report.execution_status}`",
+        f"- Evidence fingerprint: `{report.evidence_fingerprint}`",
         "",
         "## Summary",
         "",
@@ -247,8 +264,93 @@ def render_markdown_review(report: PostDeployReviewReport) -> str:
             f"{window.score} | {rules} |"
         )
 
+    lines.extend(["", "## Rollback Authorization", ""])
+    if report.rollback_approval:
+        lines.extend(
+            [
+                f"- Approved by: `{report.rollback_approval.approved_by}`",
+                f"- Approved at: `{report.rollback_approval.approved_at}`",
+                f"- Change ticket: `{report.rollback_approval.change_ticket}`",
+                f"- Reason: {report.rollback_approval.reason}",
+            ]
+        )
+    else:
+        lines.append("- No rollback authorization was supplied.")
+
     lines.extend(["", "## Recommended Actions", ""])
     lines.extend(f"- {action}" for action in report.recommended_actions)
+    return "\n".join(lines) + "\n"
+
+
+def review_approval_audit(request: ApprovalAuditRequest) -> ApprovalAuditReport:
+    review = review_post_deploy_evidence(request.review)
+    checks = {
+        "action_matches_recommendation": request.approved_action == review.decision,
+        "change_ticket_present": bool(request.change_ticket.strip()),
+        "evidence_attached": len(request.evidence_links) >= 2,
+        "incident_commander_present": bool(request.incident_commander),
+        "override_documented": (
+            request.approved_action == review.decision or bool(request.override_reason)
+        ),
+    }
+    required_checks = ["change_ticket_present", "evidence_attached"]
+    if review.decision == "rollback":
+        required_checks.append("incident_commander_present")
+    if request.approved_action != review.decision:
+        required_checks.append("override_documented")
+
+    findings = {
+        "action_matches_recommendation": "Approved action differs from the evidence recommendation.",
+        "change_ticket_present": "A change ticket is required for the audit record.",
+        "evidence_attached": "Attach at least two evidence links to preserve decision context.",
+        "incident_commander_present": "Rollback approval requires an incident commander.",
+        "override_documented": "An override reason is required when approval differs from evidence.",
+    }
+    failed = [name for name in required_checks if not checks[name]]
+    if not checks["action_matches_recommendation"]:
+        failed.insert(0, "action_matches_recommendation")
+    status = "block" if failed else "ready"
+    summary = (
+        f"{request.review.release_id}: approval audit {status}; evidence recommends "
+        f"{review.decision}, approved action is {request.approved_action}."
+    )
+    return ApprovalAuditReport(
+        release_id=request.review.release_id,
+        recommended_action=review.decision,
+        approved_action=request.approved_action,
+        status=status,
+        approver=request.approver,
+        approved_at=request.approved_at,
+        change_ticket=request.change_ticket,
+        evidence_count=len(request.evidence_links),
+        checks=checks,
+        findings=[findings[name] for name in failed],
+        summary=summary,
+    )
+
+
+def render_markdown_audit(report: ApprovalAuditReport) -> str:
+    lines = [
+        f"# Release Approval Audit: {report.release_id}",
+        "",
+        f"- Status: `{report.status}`",
+        f"- Recommended action: `{report.recommended_action}`",
+        f"- Approved action: `{report.approved_action}`",
+        f"- Approver: `{report.approver}`",
+        f"- Approved at: `{report.approved_at}`",
+        f"- Change ticket: `{report.change_ticket}`",
+        f"- Evidence links: `{report.evidence_count}`",
+        "",
+        "## Checks",
+        "",
+    ]
+    lines.extend(
+        f"- {name}: `{'pass' if passed else 'fail'}`" for name, passed in report.checks.items()
+    )
+    lines.extend(["", "## Findings", ""])
+    lines.extend(f"- {finding}" for finding in report.findings)
+    if not report.findings:
+        lines.append("- None. The approval record is ready to attach to the release.")
     return "\n".join(lines) + "\n"
 
 
@@ -267,6 +369,8 @@ def _review_actions(
         "Post the final decision and owner in the incident or deployment channel.",
     ]
     if decision == "rollback":
+        if request.rollback_approval is None:
+            actions.append("Obtain explicit rollback authorization before execution.")
         actions.extend(
             [
                 "Stop further promotion and start the rollback runbook.",

@@ -9,6 +9,8 @@
 - Windows reviewed: `3`
 - Max score: `166`
 - Latest score: `166`
+- Execution status: `ready`
+- Evidence fingerprint: `f2bf53ec5d209ca4dc3a05154c83a83cfacf527eec64ece60dd0fe66e4276fd9`
 
 ## Summary
 
@@ -21,6 +23,13 @@ checkout-api-2026.06.24-rc3: rollback after 3 post-deploy window(s); max score 1
 | 2026-06-24T18:05:00Z | continue | low | 8 | synthetic-check-warning |
 | 2026-06-24T18:12:00Z | pause | medium | 62 | limited-customer-impact, error-rate-regression, latency-regression, synthetic-check-warning |
 | 2026-06-24T18:18:00Z | rollback | critical | 166 | sev1-open, customer-impact, error-budget-burn, latency-regression, resource-saturation, synthetic-check-failures |
+
+## Rollback Authorization
+
+- Approved by: `incident-commander@example.invalid`
+- Approved at: `2026-06-24T18:20:00Z`
+- Change ticket: `CHG-2026-0624-117`
+- Reason: Customer impact and the open Sev1 require immediate rollback.
 
 ## Recommended Actions
 

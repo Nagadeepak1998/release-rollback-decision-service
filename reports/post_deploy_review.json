@@ -11,6 +11,14 @@
   "window_count": 3,
   "rollback_windows": 1,
   "pause_windows": 1,
+  "execution_status": "ready",
+  "evidence_fingerprint": "f2bf53ec5d209ca4dc3a05154c83a83cfacf527eec64ece60dd0fe66e4276fd9",
+  "rollback_approval": {
+    "approved_by": "incident-commander@example.invalid",
+    "approved_at": "2026-06-24T18:20:00Z",
+    "change_ticket": "CHG-2026-0624-117",
+    "reason": "Customer impact and the open Sev1 require immediate rollback."
+  },
   "reviewed_windows": [
     {
       "observed_at": "2026-06-24T18:05:00Z",

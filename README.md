@@ -21,6 +21,10 @@ shared evaluator in src/release_rollback/
         |
         +-- API: POST /review for multi-window post-deploy reviews
         |
+        +-- CLI/API: audit approval records before release execution
+        |
+        +-- API: POST /audit for approval-evidence checks
+        |
         +-- Metrics: /metrics
 ```
 
@@ -44,6 +48,8 @@ look at during a progressive rollout:
 - Production-support judgment for rollback, pause, and continue decisions.
 - API and CLI parity from one shared implementation.
 - Post-deploy evidence review with JSON and Markdown output.
+- Explicit rollback authorization, operator readiness, and tamper-evident evidence fingerprints.
+- Approval audit gates for change tickets, evidence links, incident command, and overrides.
 - FastAPI validation with Pydantic models.
 - Prometheus metrics for decision counts and risk scores.
 - Kubernetes manifests with probes, resource bounds, and scrape annotations.
@@ -94,6 +100,15 @@ rollback-decision review samples/post_deploy_review.json \
   --fail-on-rollback
 ```
 
+Approval audit mode, where incomplete release records exit with code `2`:
+
+```bash
+rollback-decision audit samples/approval_audit.json \
+  --output reports/approval_audit.json \
+  --markdown reports/approval_audit.md \
+  --fail-on-block
+```
+
 ## Run The API
 
 ```bash
@@ -110,6 +125,9 @@ curl -s -X POST http://127.0.0.1:8080/evaluate \
 curl -s -X POST http://127.0.0.1:8080/review \
   -H 'content-type: application/json' \
   --data @samples/post_deploy_review.json
+curl -s -X POST http://127.0.0.1:8080/audit \
+  -H 'content-type: application/json' \
+  --data @samples/approval_audit.json
 curl -s http://127.0.0.1:8080/metrics
 ```
 
@@ -127,6 +145,7 @@ pytest
 rollback-decision samples/safe_release.json
 rollback-decision samples/risky_release.json --output reports/risky_release_report.json
 make review-report
+make audit-report
 python scripts/api_smoke.py
 ```
 
@@ -136,8 +155,11 @@ Expected sample behavior:
 - `samples/risky_release.json` recommends `rollback`.
 - `samples/post_deploy_review.json` reviews three windows and recommends `rollback`.
 - `reports/post_deploy_review.md` is a tracked example report for a release record.
+- `reports/approval_audit.md` shows a release record ready for execution.
+- Rollback reviews remain `approval_required` until an explicit authorization record is supplied.
 - `/metrics` exposes `rollback_decision_requests_total`,
-  `rollback_decision_reviews_total`, and `rollback_decision_score`.
+  `rollback_decision_reviews_total`, `rollback_decision_approval_audits_total`,
+  `rollback_execution_readiness_total`, and `rollback_decision_score`.
 
 ## Docker
 
@@ -178,6 +200,10 @@ gh auth refresh -h github.com -s workflow
   release-gate behavior stay repeatable.
 - Post-deploy review timestamps are supplied by the manifest and are not verified
   against a deployment system.
+- Evidence fingerprints detect changed review inputs; they are not a substitute for an
+  append-only audit store or cryptographic signature.
+- Approval records are validated structurally; this sample does not verify external ticket,
+  incident, or identity systems.
 - Kubernetes and Terraform files are scaffolding and were not applied to a live account.
 
 ## Case Study

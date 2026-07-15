@@ -23,6 +23,8 @@ The same engine powers:
   observation windows into JSON and Markdown release records.
 - `POST /evaluate`, a FastAPI route suitable for internal release tooling.
 - `POST /review`, the API equivalent of the multi-window review.
+- `rollback-decision audit` and `POST /audit`, which verify approval ownership,
+  change-ticket linkage, evidence completeness, and documented overrides.
 - `/metrics`, a Prometheus endpoint that tracks decision volume and risk scores.
 
 ## Example Scenario
@@ -46,6 +48,11 @@ The first window can continue, the second pauses, and the final window rolls bac
 the incident becomes customer-visible. `reports/post_deploy_review.md` is the
 recruiter-readable artifact this project would attach to a deployment record.
 
+`samples/approval_audit.json` adds the human decision boundary. It records who approved
+the action, ties it to a change ticket, requires supporting evidence, and blocks an
+override when the reason is missing. `reports/approval_audit.md` is the resulting
+operator handoff artifact; it documents readiness but does not execute a rollback.
+
 ## Why It Is Useful
 
 The value is not in pretending the thresholds are universal. The value is in the
@@ -57,6 +64,9 @@ operational shape:
 - CLI and API behavior match,
 - CI can fail a risky rollout,
 - post-deploy reviews preserve the decision timeline,
+- rollback execution requires a named authorization record,
+- a SHA-256 evidence fingerprint makes changed handoff inputs visible,
+- approval audits preserve the approver, change ticket, incident commander, and evidence links,
 - metrics make gate behavior observable over time.
 
 ## Production Hardening Ideas
@@ -64,5 +74,4 @@ operational shape:
 - Pull evidence from Prometheus, Datadog, or CloudWatch instead of JSON.
 - Make thresholds service-specific through signed configuration.
 - Store reports in object storage or the deployment system.
-- Require an explicit override reason when humans continue after `rollback`.
-- Emit structured audit logs for compliance-sensitive release environments.
+- Store signed authorization records in an append-only audit backend.

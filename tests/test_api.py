@@ -1,3 +1,5 @@
+import json
+
 from fastapi.testclient import TestClient
 
 from app.main import app
@@ -92,6 +94,8 @@ def test_review_endpoint_summarizes_post_deploy_windows() -> None:
     assert body["decision"] == "rollback"
     assert body["window_count"] == 2
     assert body["rollback_windows"] == 1
+    assert body["execution_status"] == "approval_required"
+    assert len(body["evidence_fingerprint"]) == 64
 
 
 def test_metrics_endpoint_exposes_decision_counter() -> None:
@@ -100,3 +104,14 @@ def test_metrics_endpoint_exposes_decision_counter() -> None:
     assert response.status_code == 200
     assert "rollback_decision_requests_total" in response.text
     assert "rollback_decision_reviews_total" in response.text
+    assert "rollback_decision_approval_audits_total" in response.text
+    assert "rollback_execution_readiness_total" in response.text
+
+
+def test_audit_endpoint_validates_approval_evidence() -> None:
+    payload = json.loads(open("samples/approval_audit.json", encoding="utf-8").read())
+
+    response = client.post("/audit", json=payload)
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "ready"

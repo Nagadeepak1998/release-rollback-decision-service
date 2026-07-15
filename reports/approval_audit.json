@@ -1,0 +1,19 @@
+{
+  "release_id": "checkout-api-2026.06.24-rc3",
+  "recommended_action": "rollback",
+  "approved_action": "rollback",
+  "status": "ready",
+  "approver": "release-manager",
+  "approved_at": "2026-06-24T18:20:00Z",
+  "change_ticket": "CHG-2026-0624-17",
+  "evidence_count": 2,
+  "checks": {
+    "action_matches_recommendation": true,
+    "change_ticket_present": true,
+    "evidence_attached": true,
+    "incident_commander_present": true,
+    "override_documented": true
+  },
+  "findings": [],
+  "summary": "checkout-api-2026.06.24-rc3: approval audit ready; evidence recommends rollback, approved action is rollback."
+}

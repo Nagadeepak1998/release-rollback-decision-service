@@ -3,8 +3,13 @@ from __future__ import annotations
 from fastapi import FastAPI, Response
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
 
-from release_rollback import PostDeployReviewRequest, ReleaseEvidence, evaluate_release
-from release_rollback.evaluator import review_post_deploy_evidence
+from release_rollback import (
+    ApprovalAuditRequest,
+    PostDeployReviewRequest,
+    ReleaseEvidence,
+    evaluate_release,
+)
+from release_rollback.evaluator import review_approval_audit, review_post_deploy_evidence
 
 app = FastAPI(
     title="Release Rollback Decision Service",
@@ -21,6 +26,16 @@ REVIEWS = Counter(
     "rollback_decision_reviews_total",
     "Post-deploy rollback review requests by final recommendation.",
     ["decision"],
+)
+AUDITS = Counter(
+    "rollback_decision_approval_audits_total",
+    "Release approval audit reviews by readiness status.",
+    ["status"],
+)
+EXECUTION_READINESS = Counter(
+    "rollback_execution_readiness_total",
+    "Post-deploy reviews by rollback execution readiness.",
+    ["status"],
 )
 SCORES = Histogram(
     "rollback_decision_score",
@@ -46,7 +61,15 @@ def evaluate(evidence: ReleaseEvidence):
 def review(request: PostDeployReviewRequest):
     report = review_post_deploy_evidence(request)
     REVIEWS.labels(report.decision).inc()
+    EXECUTION_READINESS.labels(report.execution_status).inc()
     SCORES.observe(report.max_score)
+    return report
+
+
+@app.post("/audit")
+def audit(request: ApprovalAuditRequest):
+    report = review_approval_audit(request)
+    AUDITS.labels(report.status).inc()
     return report
 
 

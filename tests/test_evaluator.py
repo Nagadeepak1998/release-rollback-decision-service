@@ -1,5 +1,15 @@
-from release_rollback import PostDeployReviewRequest, ReleaseEvidence, evaluate_release
-from release_rollback.evaluator import render_markdown_review, review_post_deploy_evidence
+from release_rollback import (
+    ApprovalAuditRequest,
+    PostDeployReviewRequest,
+    ReleaseEvidence,
+    evaluate_release,
+)
+from release_rollback.evaluator import (
+    render_markdown_audit,
+    render_markdown_review,
+    review_approval_audit,
+    review_post_deploy_evidence,
+)
 
 
 def test_risky_release_recommends_rollback() -> None:
@@ -66,5 +76,46 @@ def test_post_deploy_review_rolls_back_when_later_window_worsens() -> None:
     assert report.window_count == 3
     assert report.rollback_windows == 1
     assert report.max_score >= report.latest_score >= 70
+    assert report.execution_status == "ready"
+    assert len(report.evidence_fingerprint) == 64
+    assert report.rollback_approval is not None
     assert "checkout-api-2026.06.24-rc3" in markdown
     assert "| 2026-06-24T18:18:00Z | rollback |" in markdown
+
+
+def test_approval_audit_is_ready_with_complete_rollback_evidence() -> None:
+    request = ApprovalAuditRequest.model_validate_json(
+        open("samples/approval_audit.json", encoding="utf-8").read()
+    )
+
+    report = review_approval_audit(request)
+    markdown = render_markdown_audit(report)
+
+    assert report.status == "ready"
+    assert report.recommended_action == report.approved_action == "rollback"
+    assert report.evidence_count == 2
+    assert report.findings == []
+    assert "CHG-2026-0624-17" in markdown
+
+
+def test_approval_audit_blocks_undocumented_override() -> None:
+    request = ApprovalAuditRequest.model_validate_json(
+        open("samples/approval_audit.json", encoding="utf-8").read()
+    ).model_copy(update={"approved_action": "continue", "override_reason": None})
+
+    report = review_approval_audit(request)
+
+    assert report.status == "block"
+    assert any("override reason" in finding for finding in report.findings)
+
+
+def test_rollback_requires_approval_before_execution() -> None:
+    request = PostDeployReviewRequest.model_validate_json(
+        open("samples/post_deploy_review.json", encoding="utf-8").read()
+    ).model_copy(update={"rollback_approval": None})
+
+    report = review_post_deploy_evidence(request)
+
+    assert report.decision == "rollback"
+    assert report.execution_status == "approval_required"
+    assert "Obtain explicit rollback authorization" in " ".join(report.recommended_actions)

@@ -1,0 +1,53 @@
+{
+  "review": {
+    "release_id": "checkout-api-2026.06.24-rc3",
+    "owner": "release-captain",
+    "rollback_runbook_url": "https://runbooks.example.invalid/checkout-api/rollback",
+    "windows": [
+      {
+        "observed_at": "2026-06-24T18:05:00Z",
+        "evidence": {
+          "service": "checkout-api",
+          "environment": "production",
+          "version": "2026.06.24-rc3",
+          "deployment_age_minutes": 5,
+          "error_rate_percent": 1.7,
+          "baseline_error_rate_percent": 0.8,
+          "p95_latency_ms": 510,
+          "baseline_p95_latency_ms": 410,
+          "saturation_percent": 72,
+          "failed_synthetic_checks": 1,
+          "canary_traffic_percent": 30,
+          "customer_impact_count": 0
+        }
+      },
+      {
+        "observed_at": "2026-06-24T18:18:00Z",
+        "evidence": {
+          "service": "checkout-api",
+          "environment": "production",
+          "version": "2026.06.24-rc3",
+          "deployment_age_minutes": 18,
+          "error_rate_percent": 6.4,
+          "baseline_error_rate_percent": 0.8,
+          "p95_latency_ms": 920,
+          "baseline_p95_latency_ms": 410,
+          "saturation_percent": 91,
+          "failed_synthetic_checks": 4,
+          "canary_traffic_percent": 60,
+          "customer_impact_count": 32,
+          "open_sev1_incident": true
+        }
+      }
+    ]
+  },
+  "approved_action": "rollback",
+  "approver": "release-manager",
+  "approved_at": "2026-06-24T18:20:00Z",
+  "change_ticket": "CHG-2026-0624-17",
+  "incident_commander": "payments-incident-commander",
+  "evidence_links": [
+    "https://metrics.example.invalid/checkout-api/release-rc3",
+    "https://incidents.example.invalid/INC-2026-441"
+  ]
+}

@@ -6,6 +6,8 @@ from pydantic import BaseModel, Field
 
 Decision = Literal["continue", "pause", "rollback"]
 Severity = Literal["low", "medium", "high", "critical"]
+AuditStatus = Literal["ready", "block"]
+ExecutionStatus = Literal["ready", "approval_required"]
 
 
 class ReleaseEvidence(BaseModel):
@@ -49,11 +51,19 @@ class EvidenceWindow(BaseModel):
     evidence: ReleaseEvidence
 
 
+class RollbackApproval(BaseModel):
+    approved_by: str = Field(min_length=1)
+    approved_at: str = Field(min_length=1)
+    change_ticket: str = Field(min_length=1)
+    reason: str = Field(min_length=1)
+
+
 class PostDeployReviewRequest(BaseModel):
     release_id: str = Field(min_length=1)
     owner: str = Field(min_length=1)
     windows: list[EvidenceWindow] = Field(min_length=1)
     rollback_runbook_url: str | None = None
+    rollback_approval: RollbackApproval | None = None
 
 
 class ReviewedWindow(BaseModel):
@@ -78,6 +88,34 @@ class PostDeployReviewReport(BaseModel):
     window_count: int
     rollback_windows: int
     pause_windows: int
+    execution_status: ExecutionStatus
+    evidence_fingerprint: str
+    rollback_approval: RollbackApproval | None
     reviewed_windows: list[ReviewedWindow]
     recommended_actions: list[str]
+    summary: str
+
+
+class ApprovalAuditRequest(BaseModel):
+    review: PostDeployReviewRequest
+    approved_action: Decision
+    approver: str = Field(min_length=1)
+    approved_at: str = Field(min_length=1)
+    change_ticket: str = Field(min_length=1)
+    incident_commander: str | None = None
+    evidence_links: list[str] = Field(min_length=1)
+    override_reason: str | None = None
+
+
+class ApprovalAuditReport(BaseModel):
+    release_id: str
+    recommended_action: Decision
+    approved_action: Decision
+    status: AuditStatus
+    approver: str
+    approved_at: str
+    change_ticket: str
+    evidence_count: int
+    checks: dict[str, bool]
+    findings: list[str]
     summary: str

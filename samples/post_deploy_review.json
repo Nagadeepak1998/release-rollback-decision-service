@@ -2,6 +2,12 @@
   "release_id": "checkout-api-2026.06.24-rc3",
   "owner": "release-captain",
   "rollback_runbook_url": "https://runbooks.example.invalid/checkout-api/rollback",
+  "rollback_approval": {
+    "approved_by": "incident-commander@example.invalid",
+    "approved_at": "2026-06-24T18:20:00Z",
+    "change_ticket": "CHG-2026-0624-117",
+    "reason": "Customer impact and the open Sev1 require immediate rollback."
+  },
   "windows": [
     {
       "observed_at": "2026-06-24T18:05:00Z",

@@ -1,4 +1,4 @@
-.PHONY: setup test lint sample-pass sample-risky review-report api-smoke clean
+.PHONY: setup test lint sample-pass sample-risky review-report audit-report api-smoke clean
 
 setup:
 	python3 -m venv .venv
@@ -19,6 +19,9 @@ sample-risky:
 
 review-report:
 	. .venv/bin/activate && PYTHONPATH=src python -m release_rollback.cli review samples/post_deploy_review.json --output reports/post_deploy_review.json --markdown reports/post_deploy_review.md --fail-on-rollback || test $$? -eq 2
+
+audit-report:
+	. .venv/bin/activate && PYTHONPATH=src python -m release_rollback.cli audit samples/approval_audit.json --output reports/approval_audit.json --markdown reports/approval_audit.md --fail-on-block
 
 api-smoke:
 	. .venv/bin/activate && PYTHONPATH=src python scripts/api_smoke.py
